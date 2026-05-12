@@ -1,40 +1,22 @@
-import './style.css'
+async function loadNews() {
+  const res = await fetch('https://niobic-omari-boastingly.ngrok-free.dev/api')
+  const data = await res.json()
 
-document.querySelector('#app').innerHTML = `
-  <div class="container">
-    <h1>PulseWire AI</h1>
+  feed.innerHTML = ''
 
-    <div class="breaking">
-      🚨 LIVE NEWS SYSTEM ONLINE
-    </div>
+  data.forEach(item => {
+    const div = document.createElement('div')
 
-    <div id="feed"></div>
-  </div>
-`
+    div.className = 'card'
 
-const feed = document.getElementById('feed')
+    div.innerHTML = `
+      <h2>${item.title}</h2>
+      <p>${item.source}</p>
+    `
 
-const news = [
-  'Breaking: Massive storm approaching Europe',
-  'AI company announces new breakthrough',
-  'Emergency alerts activated in Athens',
-  'Gaming industry shocked by major leak',
-  'Scientists reveal major discovery',
-]
-
-function addNews() {
-  const item = document.createElement('div')
-
-  item.className = 'card'
-
-  item.innerHTML = `
-    <h2>${news[Math.floor(Math.random() * news.length)]}</h2>
-    <p>Realtime AI-generated summary appearing live.</p>
-  `
-
-  feed.prepend(item)
+    feed.appendChild(div)
+  })
 }
 
-addNews()
-
-setInterval(addNews, 3000)
+loadNews()
+setInterval(loadNews, 10000)
