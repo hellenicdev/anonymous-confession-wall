@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-python-socketio
-feedparser
-openai
-python-dotenv
