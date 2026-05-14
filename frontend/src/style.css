@@ -6,26 +6,57 @@ body {
 }
 
 .container {
+  max-width: 1100px;
+  margin: auto;
   padding: 30px;
 }
 
-h1 {
-  color: #00bfff;
-  font-size: 48px;
+header {
+  margin-bottom: 30px;
 }
 
-.breaking {
-  background: red;
-  padding: 15px;
+h1 {
+  margin: 0;
+  font-size: 52px;
+  color: #00bfff;
+}
+
+.subtitle {
+  opacity: 0.7;
+}
+
+.status {
+  background: #ff0033;
+  padding: 14px;
   border-radius: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   font-weight: bold;
 }
 
 .card {
   background: #101827;
-  padding: 20px;
-  border-radius: 16px;
-  margin-bottom: 15px;
   border: 1px solid #1f2937;
+  padding: 20px;
+  border-radius: 18px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.meta {
+  opacity: 0.7;
+  margin-bottom: 15px;
+}
+
+.card a {
+  color: #00bfff;
+  text-decoration: none;
+}
+
+.error {
+  background: #330000;
+  padding: 20px;
+  border-radius: 12px;
 }

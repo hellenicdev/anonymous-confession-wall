@@ -1,22 +1,62 @@
+import './style.css'
+
+document.querySelector('#app').innerHTML = `
+  <div class="container">
+
+    <header>
+      <h1>PulseWire AI</h1>
+      <p class="subtitle">Realtime Global News</p>
+    </header>
+
+    <div class="status">
+      LIVE NEWS STREAM
+    </div>
+
+    <div id="feed"></div>
+
+  </div>
+`
+
+const feed = document.getElementById('feed')
+
 async function loadNews() {
-  const res = await fetch('https://niobic-omari-boastingly.ngrok-free.dev/api')
-  const data = await res.json()
+  try {
+    const response = await fetch(
+      'https://YOUR-RENDER-BACKEND.onrender.com/api/news'
+    )
 
-  feed.innerHTML = ''
+    const articles = await response.json()
 
-  data.forEach(item => {
-    const div = document.createElement('div')
+    feed.innerHTML = ''
 
-    div.className = 'card'
+    articles.forEach(article => {
+      const card = document.createElement('div')
 
-    div.innerHTML = `
-      <h2>${item.title}</h2>
-      <p>${item.source}</p>
+      card.className = 'card'
+
+      card.innerHTML = `
+        <h2>${article.title}</h2>
+
+        <div class="meta">
+          ${article.source}
+        </div>
+
+        <a href="${article.link}" target="_blank">
+          Open Article
+        </a>
+      `
+
+      feed.appendChild(card)
+    })
+  } catch (err) {
+    feed.innerHTML = `
+      <div class="error">
+        Failed to load live news backend.
+      </div>
     `
-
-    feed.appendChild(div)
-  })
+  }
 }
 
 loadNews()
-setInterval(loadNews, 10000)
+
+setInterval(loadNews, 60000)
