@@ -5,11 +5,13 @@ document.querySelector('#app').innerHTML = `
 
     <header>
       <h1>PulseWire AI</h1>
-      <p class="subtitle">Realtime Global News</p>
+      <p class="subtitle">
+        Realtime Global News
+      </p>
     </header>
 
-    <div class="status">
-      LIVE NEWS STREAM
+    <div class="live-bar">
+      ● LIVE NEWS STREAM
     </div>
 
     <div id="feed"></div>
@@ -20,9 +22,11 @@ document.querySelector('#app').innerHTML = `
 const feed = document.getElementById('feed')
 
 async function loadNews() {
+
   try {
+
     const response = await fetch(
-      'https://YOUR-RENDER-BACKEND.onrender.com/api/news'
+      'https://pulsewire-ai.onrender.com/api/news'
     )
 
     const articles = await response.json()
@@ -30,6 +34,7 @@ async function loadNews() {
     feed.innerHTML = ''
 
     articles.forEach(article => {
+
       const card = document.createElement('div')
 
       card.className = 'card'
@@ -47,11 +52,16 @@ async function loadNews() {
       `
 
       feed.appendChild(card)
+
     })
+
   } catch (err) {
+
+    console.error(err)
+
     feed.innerHTML = `
       <div class="error">
-        Failed to load live news backend.
+        Failed to connect to live backend.
       </div>
     `
   }
