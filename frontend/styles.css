@@ -650,9 +650,13 @@ textarea::placeholder {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   z-index: 200;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
+}
+
+.modal-overlay.open {
+  display: flex;
   animation: fadeIn 0.2s ease-out;
 }
 

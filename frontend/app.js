@@ -138,7 +138,7 @@ function createConfessionCard(confession) {
 
   card.querySelector('.report-btn').addEventListener('click', () => {
     reportTargetId = confession._id;
-    elements.reportModal.hidden = false;
+    elements.reportModal.classList.add('open');
   });
 
   return card;
@@ -332,7 +332,7 @@ document.querySelectorAll('.chip').forEach(chip => {
 });
 
 elements.cancelReport.addEventListener('click', () => {
-  elements.reportModal.hidden = true;
+  elements.reportModal.classList.remove('open');
   reportTargetId = null;
 });
 
@@ -348,14 +348,14 @@ elements.confirmReport.addEventListener('click', async () => {
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
-    elements.reportModal.hidden = true;
+    elements.reportModal.classList.remove('open');
     reportTargetId = null;
   }
 });
 
 elements.reportModal.addEventListener('click', (e) => {
   if (e.target === elements.reportModal) {
-    elements.reportModal.hidden = true;
+    elements.reportModal.classList.remove('open');
     reportTargetId = null;
   }
 });
