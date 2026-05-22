@@ -1,4 +1,4 @@
-const API_BASE = 'https://confession-wall-api.onrender.com/api';
+const API_BASE = 'https://anonymous-confession-wall-fdqx.onrender.com/api';
 
 let currentSort = 'newest';
 let currentFilter = 'all';
