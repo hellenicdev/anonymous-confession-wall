@@ -1,72 +1,48 @@
-const express = require('express')
-const cors = require('cors')
-const Parser = require('rss-parser')
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const helmet = require('helmet');
+require('dotenv').config();
 
-const app = express()
-const parser = new Parser()
+const confessionRoutes = require('./routes/confessions');
+const { getTrending } = require('./controllers/confessionController');
+const { generalLimiter } = require('./middleware/rateLimiter');
+const { sanitizeMiddleware } = require('./middleware/sanitizer');
+const errorHandler = require('./middleware/errorHandler');
 
-app.use(cors())
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-const FEEDS = [
-  {
-    name: "BBC",
-    url: "https://feeds.bbci.co.uk/news/rss.xml"
-  },
-  {
-    name: "NYTimes",
-    url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
-  },
-  {
-    name: "TechCrunch",
-    url: "https://feeds.feedburner.com/TechCrunch"
-  },
-  {
-    name: "The Verge",
-    url: "https://www.theverge.com/rss/index.xml"
-  }
-]
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
+app.use(express.json({ limit: '10kb' }));
+app.use(sanitizeMiddleware);
+app.use(generalLimiter);
 
-// health check
-app.get('/', (req, res) => {
-  res.json({ status: "PulseWire API running 🚀" })
-})
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-// main news endpoint
-app.get('/api/news', async (req, res) => {
-  try {
-    let all = []
+app.use('/api/confessions', confessionRoutes);
 
-    for (const feed of FEEDS) {
-      const data = await parser.parseURL(feed.url)
+app.get('/api/trending', getTrending);
 
-      const items = data.items.slice(0, 5).map(item => ({
-        title: item.title,
-        link: item.link,
-        source: feed.name,
-        published: item.pubDate || null
-      }))
+app.use(errorHandler);
 
-      all.push(...items)
-    }
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
-    // shuffle slightly + limit
-    all = all
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 25)
-
-    res.json(all)
-
-  } catch (err) {
-    console.error(err)
-
-    res.status(500).json({
-      error: "Failed to fetch RSS feeds"
-    })
-  }
-})
-
-const PORT = process.env.PORT || 3000
-
-app.listen(PORT, () => {
-  console.log(`PulseWire API running on port ${PORT}`)
-})
+module.exports = app;

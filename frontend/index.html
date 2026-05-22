@@ -1,35 +1,115 @@
-<!doctype html>
-<html lang="en">
-
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-
-  <title>PulseWire AI</title>
-
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9FWQFZME3Z"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-9FWQFZME3Z');
-  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Anonymous Confession Wall - Share your secrets anonymously">
+  <meta name="theme-color" content="#0f0f1a">
+  <title>Confession Wall</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
 </head>
-
 <body>
+  <div id="app">
+    <header class="header">
+      <div class="header-content">
+        <h1 class="logo">Confession<span>Wall</span></h1>
+        <p class="tagline">Speak your truth. No judgment. No names.</p>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn" data-sort="newest" id="sortNewest">Newest</button>
+        <button class="nav-btn" data-sort="reactions" id="sortReactions">Most Reacted</button>
+        <button class="nav-btn" id="showTrending">Trending</button>
+      </nav>
+    </header>
 
-  <div id="app"></div>
+    <main class="main">
+      <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <h2>Get It Off Your Chest</h2>
+          <p>Share what's on your mind. Completely anonymous. Forever.</p>
+        </div>
+      </section>
 
-  <script
-    type="module"
-    src="/src/main.js">
-  </script>
+      <section class="submit-section">
+        <div class="card submit-card glass">
+          <div class="card-header">
+            <h3>Write Your Confession</h3>
+            <span class="char-count"><span id="charCount">0</span>/1000</span>
+          </div>
+          <form id="confessionForm">
+            <textarea
+              id="confessionInput"
+              placeholder="What's weighing on your heart?..."
+              maxlength="1000"
+              rows="4"
+              required
+              aria-label="Write your confession"
+            ></textarea>
+            <div class="form-footer">
+              <small class="hint">100% anonymous. No accounts needed.</small>
+              <button type="submit" id="submitBtn" class="btn-primary">
+                <span class="btn-text">Post Confession</span>
+                <span class="btn-loader" hidden></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
 
+      <section class="feed-section">
+        <div class="feed-header">
+          <h2 id="feedTitle">Latest Confessions</h2>
+          <div class="feed-controls">
+            <div class="filter-chips">
+              <button class="chip active" data-filter="all">All</button>
+              <button class="chip" data-filter="trending">Trending</button>
+            </div>
+          </div>
+        </div>
+        <div id="feed" class="feed" role="feed" aria-live="polite">
+          <div class="loading-skeleton" id="loadingSkeleton">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-icon">💬</div>
+            <h3>No confessions yet</h3>
+            <p>Be the first to share what's on your mind.</p>
+          </div>
+        </div>
+        <div class="feed-footer" id="feedFooter">
+          <div class="infinite-scroll-sentinel" id="scrollSentinel"></div>
+        </div>
+      </section>
+    </main>
+
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <span class="toggle-icon" id="themeIcon">🌙</span>
+    </button>
+
+    <div class="toast-container" id="toastContainer" role="alert" aria-live="assertive"></div>
+
+    <footer class="footer">
+      <p>Confession Wall &mdash; Completely Anonymous</p>
+    </footer>
+  </div>
+
+  <div class="modal-overlay" id="reportModal" hidden>
+    <div class="modal glass">
+      <h3>Report Confession</h3>
+      <p>Are you sure you want to report this? Inappropriate content will be hidden after enough reports.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancelReport">Cancel</button>
+        <button class="btn-danger" id="confirmReport">Report</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
-
 </html>
