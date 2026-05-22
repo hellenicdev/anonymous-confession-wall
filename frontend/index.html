@@ -3,15 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Anonymous Confession Wall - Share your secrets anonymously">
+  <meta name="description" content="Anonymous Confession Wall - Share your secrets anonymously. No judgment. No names.">
+  <meta name="keywords" content="anonymous, confession, wall, secrets, anonymous confession, vent">
+  <meta name="author" content="Confession Wall">
   <meta name="theme-color" content="#0f0f1a">
-  <title>Confession Wall</title>
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Confession Wall">
+  <meta property="og:description" content="Share your secrets anonymously. No judgment. No names.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://hellenicdev.github.io/anonymous-confession-wall/">
+  <meta property="og:site_name" content="Confession Wall">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Confession Wall">
+  <meta name="twitter:description" content="Share your secrets anonymously. No judgment. No names.">
+  <title>Confession Wall — Anonymous Confessions</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <a href="#main" class="skip-link">Skip to content</a>
   <div id="app">
     <header class="header">
       <div class="header-content">
@@ -25,7 +38,7 @@
       </nav>
     </header>
 
-    <main class="main">
+    <main class="main" id="main">
       <section class="hero">
         <div class="hero-bg"></div>
         <div class="hero-content">
@@ -96,6 +109,7 @@
 
     <footer class="footer">
       <p>Confession Wall &mdash; Completely Anonymous</p>
+      <small>&copy; <span id="year"></span> Confession Wall. All thoughts welcome.</small>
     </footer>
   </div>
 

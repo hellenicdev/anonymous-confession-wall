@@ -720,6 +720,26 @@ textarea::placeholder {
   transform: translateY(-2px);
 }
 
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  font-weight: 600;
+  text-decoration: none;
+  font-family: var(--font);
+  font-size: 0.9rem;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
 .footer {
   text-align: center;
   padding: 40px 20px;
