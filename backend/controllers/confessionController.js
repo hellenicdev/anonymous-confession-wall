@@ -1,6 +1,7 @@
 const Confession = require('../models/Confession');
 const ReportLog = require('../models/ReportLog');
 const crypto = require('crypto');
+const dns = require('dns');
 
 const REPORT_THRESHOLD = 3;
 
@@ -153,6 +154,40 @@ exports.reportConfession = async (req, res, next) => {
   }
 };
 
+async function resolveHostname(hostname) {
+  try {
+    return await dns.promises.resolve4(hostname);
+  } catch {
+    const resolver = new dns.Resolver();
+    resolver.setServers(['8.8.8.8', '1.1.1.1']);
+    return await resolver.resolve4(hostname);
+  }
+}
+
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await resolveHostname(new URL(url).hostname);
+    } catch {
+      if (i === retries - 1) throw new Error('DNS resolution failed');
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+      continue;
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(15000)
+      });
+      return response;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
 exports.analyzeConfession = async (req, res, next) => {
   try {
     const confession = await Confession.findById(req.params.id);
@@ -173,7 +208,7 @@ Keep it concise (2-3 paragraphs). Be understanding and non-judgmental.
 
 Confession: "${confession.text}" [/INST]`;
 
-    const response = await fetch(
+    const response = await fetchWithRetry(
       'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1',
       {
         method: 'POST',
@@ -195,7 +230,7 @@ Confession: "${confession.text}" [/INST]`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Hugging Face API error:', response.status, errorText);
-      return res.status(502).json({ error: 'AI analysis service unavailable.' });
+      return res.status(502).json({ error: 'AI analysis service temporarily unavailable.' });
     }
 
     const result = await response.json();
@@ -203,6 +238,12 @@ Confession: "${confession.text}" [/INST]`;
 
     res.json({ analysis });
   } catch (err) {
+    if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
+      return res.status(504).json({ error: 'AI analysis timed out. Please try again.' });
+    }
+    if (err.message?.includes('DNS')) {
+      return res.status(503).json({ error: 'AI analysis service unreachable. Try again later.' });
+    }
     next(err);
   }
 };
