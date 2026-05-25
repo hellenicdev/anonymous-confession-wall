@@ -5,6 +5,7 @@ const {
   createConfession,
   reactToConfession,
   reportConfession,
+  analyzeConfession,
   getTrending,
   getDailyTrending
 } = require('../controllers/confessionController');
@@ -16,6 +17,7 @@ router.get('/', getConfessions);
 router.post('/', createPostLimiter, sanitizeInput, profanityFilter, createConfession);
 router.post('/:id/react', reactToConfession);
 router.post('/:id/report', reportConfession);
+router.post('/:id/analyze', analyzeConfession);
 router.get('/trending', getTrending);
 router.get('/daily-trending', getDailyTrending);
 

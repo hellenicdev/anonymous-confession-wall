@@ -109,11 +109,54 @@ function createConfessionCard(confession) {
       </button>
     </div>
     <div class="confession-card-footer">
+      <button class="ai-btn" data-id="${confession._id}" aria-label="Get AI insight">
+        <span class="ai-btn-icon">🤖</span>
+        <span class="ai-btn-text">AI Insight</span>
+        <span class="ai-btn-loader" hidden></span>
+      </button>
       <button class="report-btn" data-id="${confession._id}" aria-label="Report this confession">
         ⚑ Report
       </button>
     </div>
+    <div class="ai-analysis" hidden>
+      <div class="ai-analysis-content"></div>
+    </div>
   `;
+
+  const aiBtn = card.querySelector('.ai-btn');
+  const aiBox = card.querySelector('.ai-analysis');
+  const aiContent = aiBox.querySelector('.ai-analysis-content');
+
+  aiBtn.addEventListener('click', async () => {
+    if (aiBtn.classList.contains('loading')) return;
+
+    if (!aiBox.hidden) {
+      aiBox.hidden = true;
+      return;
+    }
+
+    if (aiContent.dataset.cached) {
+      aiBox.hidden = false;
+      return;
+    }
+
+    aiBtn.classList.add('loading');
+    aiBtn.querySelector('.ai-btn-text').hidden = true;
+    aiBtn.querySelector('.ai-btn-loader').hidden = false;
+
+    try {
+      const data = await apiFetch(`/confessions/${confession._id}/analyze`, { method: 'POST' });
+      aiContent.textContent = data.analysis;
+      aiContent.dataset.cached = 'true';
+      aiBox.hidden = false;
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      aiBtn.classList.remove('loading');
+      aiBtn.querySelector('.ai-btn-text').hidden = false;
+      aiBtn.querySelector('.ai-btn-loader').hidden = true;
+    }
+  });
 
   card.querySelectorAll('.reaction-btn').forEach(btn => {
     btn.addEventListener('click', async () => {

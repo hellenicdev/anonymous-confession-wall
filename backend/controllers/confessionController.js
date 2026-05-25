@@ -153,6 +153,60 @@ exports.reportConfession = async (req, res, next) => {
   }
 };
 
+exports.analyzeConfession = async (req, res, next) => {
+  try {
+    const confession = await Confession.findById(req.params.id);
+    if (!confession || confession.hidden) {
+      return res.status(404).json({ error: 'Confession not found.' });
+    }
+
+    const apiKey = process.env.HF_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'AI analysis is not configured.' });
+    }
+
+    const prompt = `<s>[INST] You are a thoughtful, supportive friend. Read this anonymous confession and provide:
+1. Your honest, kind opinion
+2. Helpful advice or tips for the person
+
+Keep it concise (2-3 paragraphs). Be understanding and non-judgmental.
+
+Confession: "${confession.text}" [/INST]`;
+
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 400,
+            temperature: 0.7,
+            return_full_text: false
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Hugging Face API error:', response.status, errorText);
+      return res.status(502).json({ error: 'AI analysis service unavailable.' });
+    }
+
+    const result = await response.json();
+    const analysis = result[0]?.generated_text?.trim() || 'No analysis generated.';
+
+    res.json({ analysis });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getTrending = async (req, res, next) => {
   try {
     const confessions = await Confession.find({ hidden: false })
