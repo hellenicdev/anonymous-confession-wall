@@ -209,7 +209,7 @@ async function hfRequestWithRetry(urlString, body, headers, retries = 3) {
 }
 
 const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.1';
+const HF_MODEL = 'google/gemma-2-2b-it';
 
 exports.analyzeConfession = async (req, res, next) => {
   try {
@@ -229,14 +229,12 @@ exports.analyzeConfession = async (req, res, next) => {
         model: HF_MODEL,
         messages: [
           {
+            role: 'system',
+            content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
+          },
+          {
             role: 'user',
-            content: `You are a thoughtful, supportive friend. Read this anonymous confession and provide:
-1. Your honest, kind opinion
-2. Helpful advice or tips for the person
-
-Keep it concise (2-3 paragraphs). Be understanding and non-judgmental.
-
-Confession: "${confession.text}"`
+            content: confession.text
           }
         ],
         max_tokens: 400,
