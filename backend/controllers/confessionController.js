@@ -159,9 +159,12 @@ exports.reportConfession = async (req, res, next) => {
 function googleDnsLookup(hostname, options, callback) {
   const resolver = new dns.Resolver();
   resolver.setServers(['8.8.8.8', '1.1.1.1']);
-  resolver.resolve4(hostname, (err, addresses) => {
-    if (err) return callback(err, null, null);
-    callback(null, addresses[0], 4);
+  resolver.resolve4(hostname, (err4, addrs4) => {
+    if (!err4 && addrs4?.length) return callback(null, addrs4[0], 4);
+    resolver.resolve6(hostname, (err6, addrs6) => {
+      if (!err6 && addrs6?.length) return callback(null, addrs6[0], 6);
+      callback(err4 || err6, null, null);
+    });
   });
 }
 
@@ -206,7 +209,7 @@ async function hfRequestWithRetry(urlString, body, headers, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await httpsRequest(urlString, body, headers);
-      if (response.status === 503 && i < retries - 1) {
+      if ((response.status === 429 || response.status === 502 || response.status === 503) && i < retries - 1) {
         await new Promise(r => setTimeout(r, 2000 * (i + 1)));
         continue;
       }
@@ -218,6 +221,9 @@ async function hfRequestWithRetry(urlString, body, headers, retries = 3) {
   }
   throw new Error('Max retries reached');
 }
+
+const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
+const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.1';
 
 exports.analyzeConfession = async (req, res, next) => {
   try {
@@ -231,23 +237,24 @@ exports.analyzeConfession = async (req, res, next) => {
       return res.status(500).json({ error: 'AI analysis is not configured.' });
     }
 
-    const prompt = `<s>[INST] You are a thoughtful, supportive friend. Read this anonymous confession and provide:
+    const response = await hfRequestWithRetry(
+      HF_API_URL,
+      {
+        model: HF_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a thoughtful, supportive friend. Read this anonymous confession and provide:
 1. Your honest, kind opinion
 2. Helpful advice or tips for the person
 
 Keep it concise (2-3 paragraphs). Be understanding and non-judgmental.
 
-Confession: "${confession.text}" [/INST]`;
-
-    const response = await hfRequestWithRetry(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1',
-      {
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 400,
-          temperature: 0.7,
-          return_full_text: false
-        }
+Confession: "${confession.text}"`
+          }
+        ],
+        max_tokens: 400,
+        temperature: 0.7
       },
       {
         'Authorization': `Bearer ${apiKey}`,
@@ -256,19 +263,18 @@ Confession: "${confession.text}" [/INST]`;
     );
 
     if (response.status !== 200) {
-      console.error('Hugging Face API error:', response.status, response.body);
+      console.error('Hugging Face API error:', response.status, JSON.stringify(response.body));
       return res.status(502).json({ error: 'AI analysis service temporarily unavailable.' });
     }
 
-    const result = Array.isArray(response.body) ? response.body : [response.body];
-    const analysis = result[0]?.generated_text?.trim() || 'No analysis generated.';
+    const analysis = response.body?.choices?.[0]?.message?.content?.trim() || 'No analysis generated.';
 
     res.json({ analysis });
   } catch (err) {
     if (err.message?.includes('timed out')) {
       return res.status(504).json({ error: 'AI analysis timed out. Please try again.' });
     }
-    if (err.code === 'ENOTFOUND' || err.message?.includes('getaddrinfo')) {
+    if (err.code === 'ENOTFOUND' || err.message?.includes('getaddrinfo') || err.message?.includes('ENODATA')) {
       return res.status(503).json({ error: 'AI analysis service unreachable. Try again later.' });
     }
     next(err);
