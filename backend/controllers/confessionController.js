@@ -1,7 +1,6 @@
 const Confession = require('../models/Confession');
 const ReportLog = require('../models/ReportLog');
 const crypto = require('crypto');
-const dns = require('dns');
 const https = require('https');
 
 
@@ -156,18 +155,6 @@ exports.reportConfession = async (req, res, next) => {
   }
 };
 
-function googleDnsLookup(hostname, options, callback) {
-  const resolver = new dns.Resolver();
-  resolver.setServers(['8.8.8.8', '1.1.1.1']);
-  resolver.resolve4(hostname, (err4, addrs4) => {
-    if (!err4 && addrs4?.length) return callback(null, addrs4[0], 4);
-    resolver.resolve6(hostname, (err6, addrs6) => {
-      if (!err6 && addrs6?.length) return callback(null, addrs6[0], 6);
-      callback(err4 || err6, null, null);
-    });
-  });
-}
-
 function httpsRequest(urlString, body, headers, timeout = 20000) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlString);
@@ -182,7 +169,6 @@ function httpsRequest(urlString, body, headers, timeout = 20000) {
         ...headers,
         'Content-Length': Buffer.byteLength(bodyStr)
       },
-      lookup: googleDnsLookup,
       timeout
     };
 
