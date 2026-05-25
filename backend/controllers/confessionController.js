@@ -1,7 +1,7 @@
 const Confession = require('../models/Confession');
 const ReportLog = require('../models/ReportLog');
 const crypto = require('crypto');
-const https = require('https');
+const { HfInference } = require('@huggingface/inference');
 
 
 const REPORT_THRESHOLD = 3;
@@ -155,61 +155,11 @@ exports.reportConfession = async (req, res, next) => {
   }
 };
 
-function httpsRequest(urlString, body, headers, timeout = 20000) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(urlString);
-    const bodyStr = JSON.stringify(body);
-
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Length': Buffer.byteLength(bodyStr)
-      },
-      timeout
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, body: JSON.parse(data) });
-        } catch {
-          resolve({ status: res.statusCode, body: { raw: data } });
-        }
-      });
-    });
-
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
-    req.on('error', reject);
-    req.write(bodyStr);
-    req.end();
-  });
-}
-
-async function hfRequestWithRetry(urlString, body, headers, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await httpsRequest(urlString, body, headers);
-      if ((response.status === 429 || response.status === 502 || response.status === 503) && i < retries - 1) {
-        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
-        continue;
-      }
-      return response;
-    } catch (err) {
-      if (i === retries - 1) throw err;
-      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
-    }
-  }
-  throw new Error('Max retries reached');
-}
-
-const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL = 'google/gemma-2-2b-it';
+const MODELS = [
+  'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
+  'google/gemma-2-2b-it',
+  'microsoft/Phi-3-mini-4k-instruct'
+];
 
 exports.analyzeConfession = async (req, res, next) => {
   try {
@@ -223,43 +173,45 @@ exports.analyzeConfession = async (req, res, next) => {
       return res.status(500).json({ error: 'AI analysis is not configured.' });
     }
 
-    const response = await hfRequestWithRetry(
-      HF_API_URL,
-      {
-        model: HF_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
-          },
-          {
-            role: 'user',
-            content: confession.text
-          }
-        ],
-        max_tokens: 400,
-        temperature: 0.7
-      },
-      {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    );
+    const hf = new HfInference(apiKey);
+    let lastErr;
 
-    if (response.status !== 200) {
-      console.error('Hugging Face API error:', response.status, JSON.stringify(response.body));
-      return res.status(502).json({ error: 'AI analysis service temporarily unavailable.' });
+    for (const model of MODELS) {
+      try {
+        const result = await hf.chatCompletion({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
+            },
+            {
+              role: 'user',
+              content: confession.text
+            }
+          ],
+          max_tokens: 400,
+          temperature: 0.7
+        });
+
+        const analysis = result.choices?.[0]?.message?.content?.trim() || 'No analysis generated.';
+        return res.json({ analysis });
+      } catch (err) {
+        lastErr = err;
+        if (!err.message?.includes('model') || !err.message?.includes('supported')) {
+          throw err;
+        }
+      }
     }
 
-    const analysis = response.body?.choices?.[0]?.message?.content?.trim() || 'No analysis generated.';
-
-    res.json({ analysis });
+    console.error('All AI models failed:', lastErr?.message);
+    return res.status(503).json({
+      error: 'AI analysis unavailable. Enable inference providers at https://hf.co/settings/inference-providers and add a payment method.'
+    });
   } catch (err) {
+    console.error('AI analysis error:', err.message);
     if (err.message?.includes('timed out')) {
       return res.status(504).json({ error: 'AI analysis timed out. Please try again.' });
-    }
-    if (err.code === 'ENOTFOUND' || err.message?.includes('getaddrinfo') || err.message?.includes('ENODATA')) {
-      return res.status(503).json({ error: 'AI analysis service unreachable. Try again later.' });
     }
     next(err);
   }
