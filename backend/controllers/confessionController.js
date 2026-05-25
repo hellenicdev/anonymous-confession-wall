@@ -207,6 +207,17 @@ exports.analyzeConfession = async (req, res, next) => {
       return res.status(404).json({ error: 'Confession not found.' });
     }
 
+    const { turnstileToken } = req.body;
+    if (process.env.CF_TURNSTILE_SECRET_KEY) {
+      if (!turnstileToken) {
+        return res.status(400).json({ error: 'Security check required.' });
+      }
+      const valid = await verifyTurnstile(turnstileToken);
+      if (!valid) {
+        return res.status(400).json({ error: 'Security check failed. Please try again.' });
+      }
+    }
+
     const apiKey = process.env.HF_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: 'AI analysis is not configured.' });

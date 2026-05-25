@@ -144,8 +144,13 @@ function createConfessionCard(confession) {
     aiBtn.querySelector('.ai-btn-text').hidden = true;
     aiBtn.querySelector('.ai-btn-loader').hidden = false;
 
+    const turnstileToken = typeof turnstile !== 'undefined' ? turnstile.getResponse() : '';
+
     try {
-      const data = await apiFetch(`/confessions/${confession._id}/analyze`, { method: 'POST' });
+      const data = await apiFetch(`/confessions/${confession._id}/analyze`, {
+        method: 'POST',
+        body: JSON.stringify({ turnstileToken })
+      });
       aiContent.textContent = data.analysis;
       aiContent.dataset.cached = 'true';
       aiBox.hidden = false;
