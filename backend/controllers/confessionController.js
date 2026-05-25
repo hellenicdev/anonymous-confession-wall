@@ -1,6 +1,7 @@
 const Confession = require('../models/Confession');
 const ReportLog = require('../models/ReportLog');
 const crypto = require('crypto');
+const https = require('https');
 const { HfInference } = require('@huggingface/inference');
 
 
@@ -53,9 +54,51 @@ exports.getConfessions = async (req, res, next) => {
   }
 };
 
+function verifyTurnstile(token) {
+  return new Promise((resolve, reject) => {
+    const secret = process.env.CF_TURNSTILE_SECRET_KEY;
+    if (!secret) return resolve(true);
+
+    const body = `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`;
+    const req = https.request({
+      hostname: 'challenges.cloudflare.com',
+      path: '/turnstile/v0/siteverify',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          resolve(result.success === true);
+        } catch {
+          resolve(false);
+        }
+      });
+    });
+    req.on('error', () => resolve(false));
+    req.write(body);
+    req.end();
+  });
+}
+
 exports.createConfession = async (req, res, next) => {
   try {
-    const { text } = req.body;
+    const { text, turnstileToken } = req.body;
+
+    if (process.env.CF_TURNSTILE_SECRET_KEY) {
+      if (!turnstileToken) {
+        return res.status(400).json({ error: 'Security check required.' });
+      }
+      const valid = await verifyTurnstile(turnstileToken);
+      if (!valid) {
+        return res.status(400).json({ error: 'Security check failed. Please try again.' });
+      }
+    }
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ error: 'Confession text is required.' });
@@ -176,7 +219,7 @@ exports.analyzeConfession = async (req, res, next) => {
       messages: [
         {
           role: 'system',
-          content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
+          content: 'You are a brutally honest friend. Give your unfiltered opinion and tough-love advice. Be concise (2-3 paragraphs), direct, and don\'t sugarcoat it.'
         },
         {
           role: 'user',

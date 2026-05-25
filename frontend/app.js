@@ -302,13 +302,23 @@ elements.form.addEventListener('submit', async (e) => {
   elements.submitBtn.querySelector('.btn-text').hidden = true;
   elements.submitBtn.querySelector('.btn-loader').hidden = false;
 
+  const turnstileToken = typeof turnstile !== 'undefined' ? turnstile.getResponse() : '';
+  if (!turnstileToken && typeof turnstile !== 'undefined') {
+    showToast('Please complete the security check.', 'error');
+    elements.submitBtn.disabled = false;
+    elements.submitBtn.querySelector('.btn-text').hidden = false;
+    elements.submitBtn.querySelector('.btn-loader').hidden = true;
+    return;
+  }
+
   try {
     await apiFetch('/confessions', {
       method: 'POST',
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, turnstileToken })
     });
     elements.input.value = '';
     elements.charCount.textContent = '0';
+    if (typeof turnstile !== 'undefined') turnstile.reset();
     showToast('Confession posted anonymously!', 'success');
     resetFeed();
   } catch (err) {
