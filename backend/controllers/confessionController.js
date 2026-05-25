@@ -155,11 +155,7 @@ exports.reportConfession = async (req, res, next) => {
   }
 };
 
-const MODELS = [
-  'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
-  'google/gemma-2-2b-it',
-  'microsoft/Phi-3-mini-4k-instruct'
-];
+const HF_MODEL = 'meta-llama/Llama-3.1-8B-Instruct';
 
 exports.analyzeConfession = async (req, res, next) => {
   try {
@@ -174,40 +170,25 @@ exports.analyzeConfession = async (req, res, next) => {
     }
 
     const hf = new HfInference(apiKey);
-    let lastErr;
 
-    for (const model of MODELS) {
-      try {
-        const result = await hf.chatCompletion({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
-            },
-            {
-              role: 'user',
-              content: confession.text
-            }
-          ],
-          max_tokens: 400,
-          temperature: 0.7
-        });
-
-        const analysis = result.choices?.[0]?.message?.content?.trim() || 'No analysis generated.';
-        return res.json({ analysis });
-      } catch (err) {
-        lastErr = err;
-        if (!err.message?.includes('model') || !err.message?.includes('supported')) {
-          throw err;
+    const result = await hf.chatCompletion({
+      model: HF_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a thoughtful, supportive friend. Give honest kind opinions and helpful advice. Be concise (2-3 paragraphs), understanding, and non-judgmental.'
+        },
+        {
+          role: 'user',
+          content: confession.text
         }
-      }
-    }
-
-    console.error('All AI models failed:', lastErr?.message);
-    return res.status(503).json({
-      error: 'AI analysis unavailable. Enable inference providers at https://hf.co/settings/inference-providers and add a payment method.'
+      ],
+      max_tokens: 400,
+      temperature: 0.7
     });
+
+    const analysis = result.choices?.[0]?.message?.content?.trim() || 'No analysis generated.';
+    return res.json({ analysis });
   } catch (err) {
     console.error('AI analysis error:', err.message);
     if (err.message?.includes('timed out')) {
