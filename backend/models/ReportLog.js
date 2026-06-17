@@ -14,6 +14,14 @@ const reportLogSchema = new mongoose.Schema({
   ipHash: {
     type: String,
     required: true
+  },
+  rawIp: {
+    type: String,
+    select: false
+  },
+  userAgent: {
+    type: String,
+    select: false
   }
 });
 

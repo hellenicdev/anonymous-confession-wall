@@ -31,6 +31,14 @@ const confessionSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  rawIp: {
+    type: String,
+    select: false
+  },
+  userAgent: {
+    type: String,
+    select: false
+  },
   textHash: {
     type: String,
     select: false,

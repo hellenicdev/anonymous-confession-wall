@@ -5,6 +5,7 @@ const helmet = require('helmet');
 require('dotenv').config();
 
 const confessionRoutes = require('./routes/confessions');
+const adminRoutes = require('./routes/admin');
 const { getTrending } = require('./controllers/confessionController');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { sanitizeMiddleware } = require('./middleware/sanitizer');
@@ -18,7 +19,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10kb' }));
 app.use(sanitizeMiddleware);
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/confessions', confessionRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/trending', getTrending);
 

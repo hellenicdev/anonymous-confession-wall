@@ -120,6 +120,8 @@ exports.createConfession = async (req, res, next) => {
     const confession = await Confession.create({
       text: trimmed,
       ipHash,
+      rawIp: req.ip,
+      userAgent: req.headers['user-agent'],
       textHash
     });
 
@@ -175,7 +177,9 @@ exports.reportConfession = async (req, res, next) => {
 
     await ReportLog.create({
       confessionId: confession._id,
-      ipHash
+      ipHash,
+      rawIp: req.ip,
+      userAgent: req.headers['user-agent']
     });
 
     confession.reports += 1;
