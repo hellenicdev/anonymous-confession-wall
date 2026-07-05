@@ -1,4 +1,5 @@
 # Anonymous Confession Wall
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/S6S31XB030)
 
 A modern, anonymous social wall where users can post confessions, react with emojis, and report inappropriate content. Built with vanilla JS frontend and Node.js/Express/MongoDB backend.
 
