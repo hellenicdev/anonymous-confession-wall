@@ -1,5 +1,9 @@
 const errorHandler = (err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') {
+    return res.status(400).json({ error: 'Invalid request body.' });
+  }
+
+  console.error('Unhandled error:', err.message);
 
   if (err.name === 'ValidationError') {
     const messages = Object.values(err.errors).map(e => e.message);

@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: (process.env.CORS_ORIGIN || 'https://hellenicdev.eu').split(',').map(o => o.trim()).filter(o => o && o !== '*'),
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 }));
@@ -32,7 +32,16 @@ app.use('/api/confessions', confessionRoutes);
 
 app.get('/api/trending', getTrending);
 
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found.' });
+});
+
 app.use(errorHandler);
+
+if (!process.env.MONGODB_URI) {
+  console.error('MONGODB_URI environment variable is required');
+  process.exit(1);
+}
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -42,7 +51,7 @@ mongoose.connect(process.env.MONGODB_URI)
     });
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err.message);
     process.exit(1);
   });
 

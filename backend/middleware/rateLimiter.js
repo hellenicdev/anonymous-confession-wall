@@ -16,4 +16,12 @@ const generalLimiter = rateLimit({
   legacyHeaders: false
 });
 
-module.exports = { createPostLimiter, generalLimiter };
+const interactionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Slow down a little before reacting or reporting again.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+module.exports = { createPostLimiter, generalLimiter, interactionLimiter };

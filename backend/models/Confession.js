@@ -10,8 +10,7 @@ const confessionSchema = new mongoose.Schema({
   },
   createdAt: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
   },
   reactions: {
     heart: { type: Number, default: 0 },
