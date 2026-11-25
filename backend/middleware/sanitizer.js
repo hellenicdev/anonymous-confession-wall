@@ -1,9 +1,10 @@
 const mongoSanitize = require('express-mongo-sanitize');
 
 const sanitizeInput = (req, res, next) => {
-  if (req.body.text) {
-    req.body.text = req.body.text.trim();
+  if (!req.body || typeof req.body.text !== 'string') {
+    return res.status(400).json({ error: 'Confession text is required.' });
   }
+  req.body.text = req.body.text.trim();
   next();
 };
 

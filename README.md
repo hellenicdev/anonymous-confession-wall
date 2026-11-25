@@ -1,5 +1,9 @@
 # Anonymous Confession Wall
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/S6S31XB030)
+
+**Live:** https://hellenicdev.eu/anonymous-confession-wall/
+
 A modern, anonymous social wall where users can post confessions, react with emojis, and report inappropriate content. Built with vanilla JS frontend and Node.js/Express/MongoDB backend.
 
 ## Features
@@ -79,7 +83,8 @@ A modern, anonymous social wall where users can post confessions, react with emo
 |----------|-------------|
 | `PORT` | Server port (default: 5000) |
 | `MONGODB_URI` | MongoDB connection string |
-| `CORS_ORIGIN` | Allowed CORS origin |
+| `CORS_ORIGIN` | Allowed CORS origin(s), comma-separated (default `https://hellenicdev.eu`) |
+| `IP_HASH_SALT` | Secret salt for hashing reporter IPs (set a random value in production) |
 
 ## API Endpoints
 
@@ -89,9 +94,14 @@ A modern, anonymous social wall where users can post confessions, react with emo
 | POST | `/api/confessions` | Create confession |
 | POST | `/api/confessions/:id/react` | Add reaction |
 | POST | `/api/confessions/:id/report` | Report confession |
-| GET | `/api/trending` | Get trending confessions |
+| GET | `/api/trending` | Top 10 confessions by total reactions |
+| GET | `/api/confessions/daily-trending` | Top 5 of the last 24 hours |
 | GET | `/api/health` | Health check |
 
 ## License
 
 MIT
+
+---
+
+Made by [HellenicDev](https://hellenicdev.eu).

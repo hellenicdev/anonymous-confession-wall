@@ -2,10 +2,41 @@ const Confession = require('../models/Confession');
 const ReportLog = require('../models/ReportLog');
 const crypto = require('crypto');
 
+const mongoose = require('mongoose');
+
 const REPORT_THRESHOLD = 3;
+const IP_HASH_SALT = process.env.IP_HASH_SALT || 'confession-wall-salt';
+const VALID_REACTIONS = ['heart', 'fire', 'skull', 'laugh'];
 
 function hashIP(ip) {
-  return crypto.createHash('sha256').update(ip + 'confession-wall-salt').digest('hex');
+  return crypto.createHash('sha256').update(String(ip) + IP_HASH_SALT).digest('hex');
+}
+
+function toInt(value, fallback) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function publicConfession(c) {
+  return {
+    _id: c._id,
+    text: c.text,
+    createdAt: c.createdAt,
+    reactions: c.reactions,
+    totalReactions: c.totalReactions
+  };
+}
+
+// Rank by total reactions (the old multi-key sort ranked by hearts first,
+// so a post with 1 heart beat one with 50 fires).
+async function rankedByReactions(match, limit) {
+  const docs = await Confession.aggregate([
+    { $match: match },
+    { $addFields: { totalReactions: { $add: ['$reactions.heart', '$reactions.fire', '$reactions.skull', '$reactions.laugh'] } } },
+    { $sort: { totalReactions: -1, createdAt: -1 } },
+    { $limit: limit }
+  ]);
+  return docs.map(publicConfession);
 }
 
 function hashText(text) {
@@ -15,25 +46,21 @@ function hashText(text) {
 exports.getConfessions = async (req, res, next) => {
   try {
     const { sort, page = 1, limit = 10 } = req.query;
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+    const pageNum = Math.min(1000, Math.max(1, toInt(page, 1)));
+    const limitNum = Math.min(50, Math.max(1, toInt(limit, 10)));
 
-    let sortOption = { createdAt: -1 };
+    const pipeline = [{ $match: { hidden: false } }];
     if (sort === 'reactions') {
-      sortOption = {
-        'reactions.heart': -1,
-        'reactions.fire': -1,
-        'reactions.skull': -1,
-        'reactions.laugh': -1,
-        createdAt: -1
-      };
+      pipeline.push(
+        { $addFields: { totalReactions: { $add: ['$reactions.heart', '$reactions.fire', '$reactions.skull', '$reactions.laugh'] } } },
+        { $sort: { totalReactions: -1, createdAt: -1 } }
+      );
+    } else {
+      pipeline.push({ $sort: { createdAt: -1 } });
     }
+    pipeline.push({ $skip: (pageNum - 1) * limitNum }, { $limit: limitNum });
 
-    const confessions = await Confession.find({ hidden: false })
-      .sort(sortOption)
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .lean();
+    const confessions = (await Confession.aggregate(pipeline)).map(publicConfession);
 
     const total = await Confession.countDocuments({ hidden: false });
 
@@ -55,7 +82,7 @@ exports.createConfession = async (req, res, next) => {
   try {
     const { text } = req.body;
 
-    if (!text || text.trim().length === 0) {
+    if (typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'Confession text is required.' });
     }
 
@@ -78,7 +105,7 @@ exports.createConfession = async (req, res, next) => {
       textHash
     });
 
-    res.status(201).json({ message: 'Confession posted.', confession });
+    res.status(201).json({ message: 'Confession posted.', confession: publicConfession(confession) });
   } catch (err) {
     next(err);
   }
@@ -86,24 +113,24 @@ exports.createConfession = async (req, res, next) => {
 
 exports.reactToConfession = async (req, res, next) => {
   try {
-    const { type } = req.body;
-    const validReactions = ['heart', 'fire', 'skull', 'laugh'];
+    const type = req.body && req.body.type;
 
-    if (!validReactions.includes(type)) {
+    if (!VALID_REACTIONS.includes(type)) {
       return res.status(400).json({ error: 'Invalid reaction type.' });
     }
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid ID format.' });
+    }
 
-    const confession = await Confession.findById(req.params.id);
+    // Atomic increment: concurrent reactions no longer overwrite each other.
+    const confession = await Confession.findOneAndUpdate(
+      { _id: req.params.id, hidden: false },
+      { $inc: { [`reactions.${type}`]: 1 } },
+      { new: true, projection: { reactions: 1 } }
+    ).lean();
     if (!confession) {
       return res.status(404).json({ error: 'Confession not found.' });
     }
-
-    if (confession.hidden) {
-      return res.status(404).json({ error: 'Confession not found.' });
-    }
-
-    confession.reactions[type] += 1;
-    await confession.save();
 
     res.json({ message: 'Reaction added.', reactions: confession.reactions });
   } catch (err) {
@@ -113,6 +140,9 @@ exports.reactToConfession = async (req, res, next) => {
 
 exports.reportConfession = async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid ID format.' });
+    }
     const confession = await Confession.findById(req.params.id);
     if (!confession || confession.hidden) {
       return res.status(404).json({ error: 'Confession not found.' });
@@ -133,20 +163,22 @@ exports.reportConfession = async (req, res, next) => {
       ipHash
     });
 
-    confession.reports += 1;
-
-    if (confession.reports >= REPORT_THRESHOLD) {
-      confession.hidden = true;
+    const updated = await Confession.findByIdAndUpdate(
+      confession._id,
+      { $inc: { reports: 1 } },
+      { new: true, projection: { reports: 1, hidden: 1 } }
+    );
+    if (updated.reports >= REPORT_THRESHOLD && !updated.hidden) {
+      updated.hidden = true;
+      await updated.save();
     }
 
-    await confession.save();
-
     res.json({
-      message: confession.hidden
+      message: updated.hidden
         ? 'Confession has been hidden due to multiple reports.'
         : 'Report submitted.',
-      reports: confession.reports,
-      hidden: confession.hidden
+      reports: updated.reports,
+      hidden: updated.hidden
     });
   } catch (err) {
     next(err);
@@ -155,25 +187,7 @@ exports.reportConfession = async (req, res, next) => {
 
 exports.getTrending = async (req, res, next) => {
   try {
-    const confessions = await Confession.find({ hidden: false })
-      .sort({
-        'reactions.heart': -1,
-        'reactions.fire': -1,
-        'reactions.skull': -1,
-        'reactions.laugh': -1,
-        createdAt: -1
-      })
-      .limit(10)
-      .lean();
-
-    const enriched = confessions.map(c => ({
-      ...c,
-      totalReactions: c.reactions.heart + c.reactions.fire + c.reactions.skull + c.reactions.laugh
-    }));
-
-    enriched.sort((a, b) => b.totalReactions - a.totalReactions);
-
-    res.json({ confessions: enriched.slice(0, 10) });
+    res.json({ confessions: await rankedByReactions({ hidden: false }, 10) });
   } catch (err) {
     next(err);
   }
@@ -182,28 +196,7 @@ exports.getTrending = async (req, res, next) => {
 exports.getDailyTrending = async (req, res, next) => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const confessions = await Confession.find({
-      hidden: false,
-      createdAt: { $gte: oneDayAgo }
-    })
-      .sort({
-        'reactions.heart': -1,
-        'reactions.fire': -1,
-        'reactions.skull': -1,
-        'reactions.laugh': -1
-      })
-      .limit(5)
-      .lean();
-
-    const enriched = confessions.map(c => ({
-      ...c,
-      totalReactions: c.reactions.heart + c.reactions.fire + c.reactions.skull + c.reactions.laugh
-    }));
-
-    enriched.sort((a, b) => b.totalReactions - a.totalReactions);
-
-    res.json({ confessions: enriched });
+    res.json({ confessions: await rankedByReactions({ hidden: false, createdAt: { $gte: oneDayAgo } }, 5) });
   } catch (err) {
     next(err);
   }
